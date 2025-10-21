@@ -1,0 +1,893 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ClearCode Editor</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="app">
+        <!-- Header -->
+        <header class="header">
+            <div class="title">ClearCode</div>
+            <div class="controls">
+                <button id="openFile" data-tooltip="Ctrl+O">Open</button>
+                <button id="saveFile" data-tooltip="Ctrl+S">Save</button>
+                <button id="newFile" data-tooltip="Ctrl+N">New</button>
+                <button id="toggleGuides" data-tooltip="Ctrl+G">Visual Guides</button>
+                <button id="dyslexiaMode" data-tooltip="Ctrl+D">Dyslexia Mode</button>
+                <button id="ttsBtn" data-tooltip="Ctrl+T">Text-to-Speech</button>
+                <button id="feedbackBtn" data-tooltip="Ctrl+Shift+F">💬 Feedback</button>
+                <button id="settingsBtn" data-tooltip="Ctrl+,">Settings</button>
+                <button id="helpBtn" data-tooltip="F1">Help</button>
+            </div>
+        </header>
+
+        <!-- Tab bar -->
+        <div class="tab-bar">
+            <div class="tabs-container" id="tabsContainer">
+                <!-- Tabs will be dynamically added here -->
+            </div>
+            <button class="new-tab-btn" id="newTabBtn" title="New Tab">+</button>
+        </div>
+
+        <!-- Main editor area -->
+        <div class="editor-container">
+            <!-- Sidebar -->
+            <div class="sidebar">
+                <h3>Open Files</h3>
+                <div class="file-list" id="fileList">
+                    <!-- File list will be dynamically updated -->
+                </div>
+            </div>
+
+            <!-- Editor -->
+            <div class="editor-area">
+                <div class="editor-header">
+                    <span class="filename" id="currentFilename">No file open</span>
+                    <span class="status" id="currentStatus">Ready</span>
+                </div>
+                <div id="monaco-editor"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Error Recovery Modal -->
+    <div id="errorModal" class="modal hidden">
+        <div class="modal-content error-modal">
+            <div class="modal-header">
+                <h3 id="errorModalTitle">Error Detected</h3>
+                <button id="closeError" class="close-btn">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="error-content">
+                    <div class="error-icon">⚠️</div>
+                    <div class="error-message" id="errorMessage">
+                        An unexpected error occurred. Please try again.
+                    </div>
+                    <div class="error-details" id="errorDetails" style="display: none;">
+                        <h4>Technical Details:</h4>
+                        <pre id="errorStack"></pre>
+                    </div>
+                    <div class="error-actions">
+                        <button id="showErrorDetails">Show Details</button>
+                        <button id="reportError">Report Issue</button>
+                        <button id="recoverSession">Recover Session</button>
+                        <button id="resetEditor">Reset Editor</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings panel -->
+    <div id="settingsPanel" class="settings-panel hidden">
+        <div class="settings-content">
+            <h3>Accessibility Settings</h3>
+            
+            <div class="setting-group">
+                <h4>Editor Preferences</h4>
+                <div class="editor-setting">
+                    <label for="editorTheme">Theme:</label>
+                    <select id="editorTheme">
+                        <option value="vs-dark">Dark (Default)</option>
+                        <option value="vs">Light</option>
+                        <option value="hc-black">High Contrast Dark</option>
+                        <option value="hc-light">High Contrast Light</option>
+                    </select>
+                </div>
+                <div class="editor-setting">
+                    <label for="fontSize">Font Size:</label>
+                    <input type="range" id="fontSize" min="10" max="30" value="14" step="1">
+                    <span id="fontSizeValue">14px</span>
+                </div>
+                <div class="editor-setting">
+                    <label for="fontFamily">Font Family:</label>
+                    <select id="fontFamily">
+                        <option value="'Consolas', 'Courier New', monospace">Consolas</option>
+                        <option value="'Monaco', 'Menlo', monospace">Monaco</option>
+                        <option value="'Source Code Pro', monospace">Source Code Pro</option>
+                        <option value="'Fira Code', monospace">Fira Code</option>
+                        <option value="'JetBrains Mono', monospace">JetBrains Mono</option>
+                        <option value="'OpenDyslexic', monospace">OpenDyslexic</option>
+                    </select>
+                </div>
+                <label class="editor-option">
+                    <input type="checkbox" id="wordWrap"> Word wrap
+                </label>
+                <label class="editor-option">
+                    <input type="checkbox" id="showMinimap"> Show minimap
+                </label>
+                <label class="editor-option">
+                    <input type="checkbox" id="showLineNumbers" checked> Show line numbers
+                </label>
+                <label class="editor-option">
+                    <input type="checkbox" id="autoSave"> Auto-save changes
+                </label>
+                <label class="editor-option">
+                    <input type="checkbox" id="enableErrorReporting" checked> Enable error reporting
+                </label>
+                <label class="editor-option">
+                    <input type="checkbox" id="autoRecovery" checked> Auto-recovery on errors
+                </label>
+            </div>
+            
+            <div class="setting-group">
+                <h4>Color Customization</h4>
+                <div class="color-setting">
+                    <label>Space indicators:</label>
+                    <input type="color" id="spaceColor" value="#6495ed">
+                    <input type="range" id="spaceOpacity" min="0.1" max="1" step="0.1" value="0.7">
+                    <span class="opacity-label">70%</span>
+                </div>
+                <div class="color-setting">
+                    <label>Block markers:</label>
+                    <input type="color" id="blockColor" value="#ffa500">
+                    <input type="range" id="blockOpacity" min="0.1" max="1" step="0.1" value="0.8">
+                    <span class="opacity-label">80%</span>
+                </div>
+                <div class="color-setting">
+                    <label>Python colons:</label>
+                    <input type="color" id="pythonColor" value="#32cd32">
+                    <input type="range" id="pythonOpacity" min="0.1" max="1" step="0.1" value="0.8">
+                    <span class="opacity-label">80%</span>
+                </div>
+                <div class="color-setting">
+                    <label>Indentation guides:</label>
+                    <input type="color" id="indentColor" value="#32cd32">
+                    <input type="range" id="indentOpacity" min="0.1" max="1" step="0.1" value="0.6">
+                    <span class="opacity-label">60%</span>
+                </div>
+                
+                <div class="color-presets">
+                    <button id="resetColors">Reset to Default</button>
+                    <button id="highContrast">High Contrast</button>
+                    <button id="colorblindFriendly">Red-Green Friendly</button>
+                    <button id="blueYellowFriendly">Blue-Yellow Friendly</button>
+                </div>
+            </div>
+            
+            <div class="setting-group">
+                <h4>Dyslexia Features</h4>
+                <label>
+                    <input type="checkbox" id="dyslexiaFont"> Use dyslexia-friendly font
+                </label>
+                <label>
+                    <input type="checkbox" id="increasedSpacing"> Increased letter spacing
+                </label>
+                <label>
+                    <input type="checkbox" id="lineHighlight"> Current line highlighting
+                </label>
+                <label>
+                    <input type="checkbox" id="blockHighlight"> Code block boundaries
+                </label>
+            </div>
+            
+            <div class="setting-group">
+                <h4>Visual Guides</h4>
+                <label>
+                    <input type="checkbox" id="spaceGuides" checked> Space indicators
+                </label>
+                <label>
+                    <input type="checkbox" id="blockGuides" checked> Block markers
+                </label>
+                <label>
+                    <input type="checkbox" id="indentGuides" checked> Indentation guides
+                </label>
+            </div>
+            
+            <div class="setting-group">
+                <h4>Data Management</h4>
+                <div class="data-buttons">
+                    <button id="exportSettings">Export Settings</button>
+                    <button id="importSettings">Import Settings</button>
+                    <button id="resetAllSettings">Reset All Settings</button>
+                    <button id="clearAllData">Clear All Data</button>
+                </div>
+                <div class="data-info">
+                    <small>Settings are automatically saved to your browser's local storage.</small>
+                </div>
+            </div>
+            
+            <button id="closeSettings">Close</button>
+        </div>
+    </div>
+
+    <!-- Search/Replace Modal -->
+    <div id="searchModal" class="modal hidden">
+        <div class="modal-content search-modal">
+            <div class="modal-header">
+                <h3 id="searchModalTitle">Find</h3>
+                <button id="closeSearch" class="close-btn">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="search-form">
+                    <div class="search-input-group">
+                        <label for="searchInput">Find:</label>
+                        <input type="text" id="searchInput" placeholder="Enter search term">
+                    </div>
+                    
+                    <div class="search-input-group" id="replaceGroup" style="display: none;">
+                        <label for="replaceInput">Replace:</label>
+                        <input type="text" id="replaceInput" placeholder="Enter replacement text">
+                    </div>
+                    
+                    <div class="search-options">
+                        <label class="search-option">
+                            <input type="checkbox" id="caseSensitive"> Case sensitive
+                        </label>
+                        <label class="search-option">
+                            <input type="checkbox" id="wholeWord"> Whole word
+                        </label>
+                        <label class="search-option">
+                            <input type="checkbox" id="useRegex"> Regular expression
+                        </label>
+                        <label class="search-option">
+                            <input type="checkbox" id="searchAllFiles"> Search all open files
+                        </label>
+                    </div>
+                    
+                    <div class="search-results" id="searchResults">
+                        <span id="matchCount">No matches</span>
+                    </div>
+                    
+                    <div class="search-actions">
+                        <button id="findNext">Find Next</button>
+                        <button id="findPrev">Find Previous</button>
+                        <button id="replaceNext" style="display: none;">Replace</button>
+                        <button id="replaceAll" style="display: none;">Replace All</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Text-to-Speech Panel -->
+    <div id="ttsPanel" class="tts-panel hidden">
+        <div class="tts-content">
+            <div class="tts-header">
+                <h3>🔊 Text-to-Speech</h3>
+                <button id="closeTTS" class="close-btn">&times;</button>
+            </div>
+            
+            <div class="tts-controls">
+                <div class="tts-actions">
+                    <button id="readSelection" class="tts-btn" title="Ctrl+Shift+R">
+                        <span>📖</span> Read Selection
+                    </button>
+                    <button id="readLine" class="tts-btn" title="Ctrl+Shift+L">
+                        <span>📄</span> Read Current Line
+                    </button>
+                    <button id="stopReading" class="tts-btn stop" title="Escape">
+                        <span>⏹️</span> Stop
+                    </button>
+                </div>
+                
+                <div class="tts-settings-group">
+                    <h4>Voice Settings</h4>
+                    
+                    <div class="tts-setting">
+                        <label for="ttsVoice">Voice:</label>
+                        <select id="ttsVoice">
+                            <option value="">Default Voice</option>
+                        </select>
+                    </div>
+                    
+                    <div class="tts-setting">
+                        <label for="ttsRate">Speed:</label>
+                        <input type="range" id="ttsRate" min="0.5" max="2" step="0.1" value="1">
+                        <span id="ttsRateValue">1.0x</span>
+                    </div>
+                    
+                    <div class="tts-setting">
+                        <label for="ttsPitch">Pitch:</label>
+                        <input type="range" id="ttsPitch" min="0.5" max="2" step="0.1" value="1">
+                        <span id="ttsPitchValue">1.0x</span>
+                    </div>
+                    
+                    <div class="tts-setting">
+                        <label for="ttsVolume">Volume:</label>
+                        <input type="range" id="ttsVolume" min="0" max="1" step="0.1" value="1">
+                        <span id="ttsVolumeValue">100%</span>
+                    </div>
+                </div>
+                
+                <div class="tts-info">
+                    <p>💡 <strong>Quick Tips:</strong></p>
+                    <ul>
+                        <li>Select text and press <kbd>Ctrl+Shift+R</kbd> to read</li>
+                        <li>Press <kbd>Ctrl+Shift+L</kbd> to read current line</li>
+                        <li>Press <kbd>Escape</kbd> to stop reading</li>
+                        <li>Adjust speed and pitch to your preference</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Feedback Modal -->
+    <div id="feedbackModal" class="modal hidden">
+        <div class="modal-content feedback-modal">
+            <div class="modal-header">
+                <h3>💬 Feedback & Feature Requests</h3>
+                <button id="closeFeedback" class="close-btn">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="feedback-intro">
+                    <p>We'd love to hear from you! Share your ideas, report bugs, or request new features to make ClearCode even better.</p>
+                </div>
+                
+                <form id="feedbackForm" class="feedback-form">
+                    <div class="form-group">
+                        <label for="feedbackType">Type:</label>
+                        <select id="feedbackType" required>
+                            <option value="">-- Select Type --</option>
+                            <option value="feature">✨ Feature Request</option>
+                            <option value="bug">🐛 Bug Report</option>
+                            <option value="improvement">🔧 Improvement Suggestion</option>
+                            <option value="accessibility">♿ Accessibility Feedback</option>
+                            <option value="general">💭 General Feedback</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="feedbackName">Your Name (optional):</label>
+                        <input type="text" id="feedbackName" placeholder="Enter your name">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="feedbackEmail">Your Email (optional):</label>
+                        <input type="email" id="feedbackEmail" placeholder="your.email@example.com">
+                        <small>Provide your email if you'd like a response</small>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="feedbackSubject">Subject:</label>
+                        <input type="text" id="feedbackSubject" required placeholder="Brief description">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="feedbackMessage">Details:</label>
+                        <textarea id="feedbackMessage" required rows="8" placeholder="Describe your feedback, feature request, or issue in detail..."></textarea>
+                    </div>
+                    
+                    <div class="form-group checkbox-group">
+                        <label>
+                            <input type="checkbox" id="includeSystemInfo" checked>
+                            Include system information (browser, OS) to help us understand context
+                        </label>
+                    </div>
+                    
+                    <div class="feedback-actions">
+                        <button type="submit" class="btn-primary">📤 Send Feedback</button>
+                        <button type="button" id="cancelFeedback" class="btn-secondary">Cancel</button>
+                    </div>
+                    
+                    <div id="feedbackStatus" class="feedback-status hidden"></div>
+                </form>
+                
+                <div class="feedback-footer">
+                    <p><strong>📧 Alternative:</strong> You can also email us directly at <a href="mailto:feedback@clearcode.app" id="feedbackEmailLink">feedback@clearcode.app</a></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Help Modal -->
+    <div id="helpModal" class="modal hidden">
+        <div class="modal-content help-modal">
+            <div class="modal-header">
+                <h3>ClearCode Help & Documentation</h3>
+                <button id="closeHelp" class="close-btn">&times;</button>
+            </div>
+            <div class="modal-body">
+                <!-- Help Navigation -->
+                <div class="help-navigation">
+                    <button class="help-nav-btn active" data-section="shortcuts">Shortcuts</button>
+                    <button class="help-nav-btn" data-section="getting-started">Getting Started</button>
+                    <button class="help-nav-btn" data-section="accessibility">Accessibility</button>
+                    <button class="help-nav-btn" data-section="visual-guides">Visual Guides</button>
+                    <button class="help-nav-btn" data-section="troubleshooting">Troubleshooting</button>
+                    <button class="help-nav-btn" data-section="tips">Tips & Tricks</button>
+                </div>
+
+                <!-- Help Content Sections -->
+                <div class="help-content">
+                    <!-- Keyboard Shortcuts Section -->
+                    <div id="help-shortcuts" class="help-section active">
+                        <h3>Keyboard Shortcuts</h3>
+                        
+                        <div class="shortcut-section">
+                            <h4>File Operations</h4>
+                            <div class="shortcut-item">
+                                <span class="shortcut">Ctrl+N</span>
+                                <span class="description">New file</span>
+                            </div>
+                            <div class="shortcut-item">
+                                <span class="shortcut">Ctrl+O</span>
+                                <span class="description">Open file</span>
+                            </div>
+                            <div class="shortcut-item">
+                                <span class="shortcut">Ctrl+S</span>
+                                <span class="description">Save file</span>
+                            </div>
+                            <div class="shortcut-item">
+                                <span class="shortcut">Ctrl+W</span>
+                                <span class="description">Close current tab</span>
+                            </div>
+                            <div class="shortcut-item">
+                                <span class="shortcut">Ctrl+Tab</span>
+                                <span class="description">Next tab</span>
+                            </div>
+                            <div class="shortcut-item">
+                                <span class="shortcut">Ctrl+Shift+Tab</span>
+                                <span class="description">Previous tab</span>
+                            </div>
+                        </div>
+                        
+                        <div class="shortcut-section">
+                            <h4>Search & Replace</h4>
+                            <div class="shortcut-item">
+                                <span class="shortcut">Ctrl+F</span>
+                                <span class="description">Find</span>
+                            </div>
+                            <div class="shortcut-item">
+                                <span class="shortcut">Ctrl+H</span>
+                                <span class="description">Find and replace</span>
+                            </div>
+                            <div class="shortcut-item">
+                                <span class="shortcut">F3</span>
+                                <span class="description">Find next</span>
+                            </div>
+                            <div class="shortcut-item">
+                                <span class="shortcut">Shift+F3</span>
+                                <span class="description">Find previous</span>
+                            </div>
+                        </div>
+                        
+                        <div class="shortcut-section">
+                            <h4>Accessibility</h4>
+                            <div class="shortcut-item">
+                                <span class="shortcut">Ctrl+G</span>
+                                <span class="description">Toggle visual guides</span>
+                            </div>
+                            <div class="shortcut-item">
+                                <span class="shortcut">Ctrl+D</span>
+                                <span class="description">Toggle dyslexia mode</span>
+                            </div>
+                            <div class="shortcut-item">
+                                <span class="shortcut">Ctrl+,</span>
+                                <span class="description">Open settings</span>
+                            </div>
+                            <div class="shortcut-item">
+                                <span class="shortcut">Esc</span>
+                                <span class="description">Close settings/modal</span>
+                            </div>
+                        </div>
+                        
+                        <div class="shortcut-section">
+                            <h4>View</h4>
+                            <div class="shortcut-item">
+                                <span class="shortcut">Ctrl++</span>
+                                <span class="description">Increase font size</span>
+                            </div>
+                            <div class="shortcut-item">
+                                <span class="shortcut">Ctrl+-</span>
+                                <span class="description">Decrease font size</span>
+                            </div>
+                            <div class="shortcut-item">
+                                <span class="shortcut">Ctrl+0</span>
+                                <span class="description">Reset font size</span>
+                            </div>
+                        </div>
+                        
+                        <div class="shortcut-section">
+                            <h4>Help</h4>
+                            <div class="shortcut-item">
+                                <span class="shortcut">F1</span>
+                                <span class="description">Show this help</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Getting Started Section -->
+                    <div id="help-getting-started" class="help-section">
+                        <h3>Getting Started with ClearCode</h3>
+                        
+                        <div class="tutorial-step">
+                            <h4>🎯 Step 1: Create Your First File</h4>
+                            <p>Click the <strong>"New"</strong> button or press <kbd>Ctrl+N</kbd> to create a new file. You can also open existing files with <strong>"Open"</strong> or <kbd>Ctrl+O</kbd>.</p>
+                            <div class="example-code">
+                                <pre><code>// Your first JavaScript file
+function greetWorld() {
+    console.log("Hello, ClearCode!");
+}
+
+greetWorld();</code></pre>
+                            </div>
+                        </div>
+
+                        <div class="tutorial-step">
+                            <h4>⚙️ Step 2: Customize Your Settings</h4>
+                            <p>Click the <strong>"Settings"</strong> button or press <kbd>Ctrl+,</kbd> to customize:</p>
+                            <ul>
+                                <li><strong>Theme:</strong> Choose from dark, light, or high contrast themes</li>
+                                <li><strong>Font:</strong> Adjust size and family (including dyslexia-friendly options)</li>
+                                <li><strong>Visual Guides:</strong> Enable space indicators and block markers</li>
+                                <li><strong>Accessibility:</strong> Turn on dyslexia mode and other features</li>
+                            </ul>
+                        </div>
+
+                        <div class="tutorial-step">
+                            <h4>🔍 Step 3: Use Search & Replace</h4>
+                            <p>Press <kbd>Ctrl+F</kbd> to search or <kbd>Ctrl+H</kbd> to find and replace text. Advanced options include regex and case-sensitive search.</p>
+                        </div>
+
+                        <div class="tutorial-step">
+                            <h4>💾 Step 4: Save Your Work</h4>
+                            <p>Your work is automatically saved to your browser. Use <kbd>Ctrl+S</kbd> to download files. Enable auto-save in settings for continuous saving.</p>
+                        </div>
+
+                        <div class="feature-highlight">
+                            <h4>✨ Key Features</h4>
+                            <ul>
+                                <li><strong>Multi-tab editing:</strong> Work with multiple files simultaneously</li>
+                                <li><strong>Syntax highlighting:</strong> Support for JavaScript, Python, HTML, CSS, and more</li>
+                                <li><strong>Visual accessibility:</strong> Space indicators, indentation guides, and color customization</li>
+                                <li><strong>Persistent sessions:</strong> Your work is saved and restored between visits</li>
+                                <li><strong>Error recovery:</strong> Automatic backup and recovery systems</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <!-- Accessibility Section -->
+                    <div id="help-accessibility" class="help-section">
+                        <h3>Accessibility Features</h3>
+                        
+                        <div class="accessibility-feature">
+                            <h4>🔤 Dyslexia Support</h4>
+                            <p>ClearCode includes comprehensive dyslexia support:</p>
+                            <ul>
+                                <li><strong>OpenDyslexic Font:</strong> Specially designed font that helps with letter recognition</li>
+                                <li><strong>Increased Letter Spacing:</strong> Improves readability and reduces crowding</li>
+                                <li><strong>Line Highlighting:</strong> Highlights the current line to maintain focus</li>
+                                <li><strong>Block Boundaries:</strong> Visual indicators for code structure</li>
+                            </ul>
+                            <p><strong>Quick Enable:</strong> Press <kbd>Ctrl+D</kbd> or click "Dyslexia Mode" to enable all features at once.</p>
+                        </div>
+
+                        <div class="accessibility-feature">
+                            <h4>👁️ Visual Enhancements</h4>
+                            <ul>
+                                <li><strong>High Contrast Themes:</strong> Improved visibility with high contrast color schemes</li>
+                                <li><strong>Customizable Colors:</strong> Adjust colors for visual guides and syntax highlighting</li>
+                                <li><strong>Font Size Control:</strong> Easily increase/decrease font size with <kbd>Ctrl+±</kbd></li>
+                                <li><strong>Color-blind Friendly Presets:</strong> Pre-configured color schemes for different types of color vision</li>
+                            </ul>
+                        </div>
+
+                        <div class="accessibility-feature">
+                            <h4>⌨️ Keyboard Navigation</h4>
+                            <p>Every feature in ClearCode can be accessed via keyboard shortcuts. Essential shortcuts:</p>
+                            <ul>
+                                <li><kbd>F1</kbd> - Access this help system</li>
+                                <li><kbd>Ctrl+,</kbd> - Open settings</li>
+                                <li><kbd>Ctrl+G</kbd> - Toggle visual guides</li>
+                                <li><kbd>Esc</kbd> - Close modals and dialogs</li>
+                                <li><kbd>Tab</kbd> - Navigate through interface elements</li>
+                            </ul>
+                        </div>
+
+                        <div class="accessibility-feature">
+                            <h4>🔊 Screen Reader Support</h4>
+                            <p>ClearCode is designed to work with screen readers:</p>
+                            <ul>
+                                <li>Semantic HTML structure for proper navigation</li>
+                                <li>ARIA labels and descriptions on interactive elements</li>
+                                <li>Keyboard-accessible interface</li>
+                                <li>Alternative text for visual elements</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <!-- Visual Guides Section -->
+                    <div id="help-visual-guides" class="help-section">
+                        <h3>Visual Guides System</h3>
+                        
+                        <div class="guide-explanation">
+                            <h4>🔍 Space & Tab Indicators</h4>
+                            <p>Visual markers help you see whitespace characters:</p>
+                            <ul>
+                                <li><span class="guide-example space">·</span> <strong>Spaces</strong> - Small dots show individual spaces</li>
+                                <li><span class="guide-example tab">→</span> <strong>Tabs</strong> - Arrows indicate tab characters</li>
+                            </ul>
+                            <p><strong>Why helpful:</strong> Prevents indentation mixing and alignment issues.</p>
+                        </div>
+
+                        <div class="guide-explanation">
+                            <h4>📦 Block Markers</h4>
+                            <p>Visual indicators for code structure in different languages:</p>
+                            
+                            <div class="language-guide">
+                                <h5>Python</h5>
+                                <p><span class="guide-example python">►</span> Marks the end of lines ending with colons (functions, if statements, etc.)</p>
+                                <div class="code-example">
+                                    <pre><code>def my_function(): <span class="guide-example python">►</span>
+    if True: <span class="guide-example python">►</span>
+        print("Hello!")</code></pre>
+                                </div>
+                            </div>
+
+                            <div class="language-guide">
+                                <h5>JavaScript/TypeScript</h5>
+                                <p><span class="guide-example block-start">┌─</span> Block start • <span class="guide-example block-end">└─</span> Block end</p>
+                                <div class="code-example">
+                                    <pre><code>function example() { <span class="guide-example block-start">┌─</span>
+    return true;
+<span class="guide-example block-end">└─</span> }</code></pre>
+                                </div>
+                            </div>
+
+                            <div class="language-guide">
+                                <h5>HTML</h5>
+                                <p><span class="guide-example html">◀</span> Marks tag boundaries for better structure visibility</p>
+                            </div>
+
+                            <div class="language-guide">
+                                <h5>CSS</h5>
+                                <p><span class="guide-example css-prop">◆</span> Property indicators • <span class="guide-example css-block">┌─</span> Block markers</p>
+                            </div>
+                        </div>
+
+                        <div class="guide-explanation">
+                            <h4>📏 Indentation Guides</h4>
+                            <p><span class="guide-example indent">┊</span> Vertical lines show indentation levels, helping you:</p>
+                            <ul>
+                                <li>Understand code structure at a glance</li>
+                                <li>Maintain consistent indentation</li>
+                                <li>Spot indentation errors quickly</li>
+                            </ul>
+                        </div>
+
+                        <div class="customization-info">
+                            <h4>🎨 Customization</h4>
+                            <p>In Settings, you can:</p>
+                            <ul>
+                                <li>Change colors for each type of guide</li>
+                                <li>Adjust opacity/transparency</li>
+                                <li>Enable/disable specific guide types</li>
+                                <li>Use preset color schemes for accessibility</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <!-- Troubleshooting Section -->
+                    <div id="help-troubleshooting" class="help-section">
+                        <h3>Troubleshooting & FAQ</h3>
+                        
+                        <div class="faq-item">
+                            <h4>❓ Editor Won't Load</h4>
+                            <div class="faq-content">
+                                <p><strong>Problem:</strong> The code editor doesn't appear or shows an error.</p>
+                                <p><strong>Solutions:</strong></p>
+                                <ol>
+                                    <li>Refresh the page (F5 or Ctrl+R)</li>
+                                    <li>Clear browser cache and cookies</li>
+                                    <li>Disable browser extensions temporarily</li>
+                                    <li>Try a different browser</li>
+                                    <li>Check if JavaScript is enabled</li>
+                                </ol>
+                                <p><strong>Fallback:</strong> If Monaco Editor fails, ClearCode will show a basic text editor.</p>
+                            </div>
+                        </div>
+
+                        <div class="faq-item">
+                            <h4>💾 Lost My Work</h4>
+                            <div class="faq-content">
+                                <p><strong>Problem:</strong> Files disappeared or work was lost.</p>
+                                <p><strong>Solutions:</strong></p>
+                                <ol>
+                                    <li>Check the error recovery modal (may appear automatically)</li>
+                                    <li>Look for emergency backup in Settings → Import Settings</li>
+                                    <li>Check browser's local storage for session data</li>
+                                    <li>Try the "Recover Session" button if available</li>
+                                </ol>
+                                <p><strong>Prevention:</strong> Enable auto-save in settings and regularly download important files.</p>
+                            </div>
+                        </div>
+
+                        <div class="faq-item">
+                            <h4>🐌 Performance Issues</h4>
+                            <div class="faq-content">
+                                <p><strong>Problem:</strong> Editor is slow or unresponsive.</p>
+                                <p><strong>Solutions:</strong></p>
+                                <ol>
+                                    <li>Close unused tabs to reduce memory usage</li>
+                                    <li>Disable visual guides for very large files</li>
+                                    <li>Turn off minimap in settings</li>
+                                    <li>Clear browser data and restart</li>
+                                    <li>Check for browser updates</li>
+                                </ol>
+                            </div>
+                        </div>
+
+                        <div class="faq-item">
+                            <h4>🎨 Visual Guides Not Working</h4>
+                            <div class="faq-content">
+                                <p><strong>Problem:</strong> Space indicators or block markers aren't visible.</p>
+                                <p><strong>Solutions:</strong></p>
+                                <ol>
+                                    <li>Press Ctrl+G to toggle visual guides on</li>
+                                    <li>Check individual guide settings in Settings panel</li>
+                                    <li>Adjust colors and opacity - they might be too faint</li>
+                                    <li>Try a different theme if guides blend in</li>
+                                </ol>
+                            </div>
+                        </div>
+
+                        <div class="faq-item">
+                            <h4>📱 Mobile/Touch Issues</h4>
+                            <div class="faq-content">
+                                <p><strong>Problem:</strong> Difficult to use on mobile devices.</p>
+                                <p><strong>Note:</strong> ClearCode is optimized for desktop use. For mobile:</p>
+                                <ol>
+                                    <li>Use landscape orientation</li>
+                                    <li>Increase font size in settings</li>
+                                    <li>Consider using an external keyboard</li>
+                                    <li>Hide sidebar to save space</li>
+                                </ol>
+                            </div>
+                        </div>
+
+                        <div class="error-reporting">
+                            <h4>🚨 Reporting Issues</h4>
+                            <p>If you encounter errors:</p>
+                            <ol>
+                                <li>Click "Report Issue" in error dialogs</li>
+                                <li>Download the error report</li>
+                                <li>Include steps to reproduce the problem</li>
+                                <li>Share your browser and OS information</li>
+                            </ol>
+                        </div>
+                    </div>
+
+                    <!-- Tips & Tricks Section -->
+                    <div id="help-tips" class="help-section">
+                        <h3>Tips & Tricks</h3>
+                        
+                        <div class="tip-category">
+                            <h4>💡 Productivity Tips</h4>
+                            
+                            <div class="tip-item">
+                                <h5>🔥 Master the Shortcuts</h5>
+                                <p>Learn these essential shortcuts to work faster:</p>
+                                <ul>
+                                    <li><kbd>Ctrl+D</kbd> for instant dyslexia mode</li>
+                                    <li><kbd>Ctrl+Tab</kbd> to quickly switch between files</li>
+                                    <li><kbd>Ctrl+G</kbd> to toggle visual guides when needed</li>
+                                    <li><kbd>Ctrl+±</kbd> to adjust font size on the fly</li>
+                                </ul>
+                            </div>
+
+                            <div class="tip-item">
+                                <h5>📂 File Management</h5>
+                                <ul>
+                                    <li>Drag and drop files to open them quickly</li>
+                                    <li>Use meaningful filenames for better organization</li>
+                                    <li>Close unused tabs to keep workspace clean</li>
+                                    <li>Enable auto-save to never lose work</li>
+                                </ul>
+                            </div>
+
+                            <div class="tip-item">
+                                <h5>🔍 Search Like a Pro</h5>
+                                <ul>
+                                    <li>Use regex for powerful pattern matching</li>
+                                    <li>Enable "Search all files" for project-wide searches</li>
+                                    <li>Use whole word matching to avoid partial matches</li>
+                                    <li>Try case-sensitive search for exact matches</li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <div class="tip-category">
+                            <h4>♿ Accessibility Tips</h4>
+                            
+                            <div class="tip-item">
+                                <h5>🎨 Optimize Your View</h5>
+                                <ul>
+                                    <li>Experiment with different themes for comfort</li>
+                                    <li>Adjust font size for your viewing distance</li>
+                                    <li>Try colorblind-friendly presets if needed</li>
+                                    <li>Use high contrast themes in bright environments</li>
+                                </ul>
+                            </div>
+
+                            <div class="tip-item">
+                                <h5>📖 Reading Assistance</h5>
+                                <ul>
+                                    <li>Enable line highlighting to track your position</li>
+                                    <li>Use increased letter spacing for better clarity</li>
+                                    <li>Turn on indentation guides for structure</li>
+                                    <li>Customize colors to reduce eye strain</li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <div class="tip-category">
+                            <h4>🛠️ Advanced Features</h4>
+                            
+                            <div class="tip-item">
+                                <h5>⚙️ Settings Management</h5>
+                                <ul>
+                                    <li>Export settings to backup your configuration</li>
+                                    <li>Import settings to share configurations</li>
+                                    <li>Reset settings if something goes wrong</li>
+                                    <li>Enable error reporting to help improve ClearCode</li>
+                                </ul>
+                            </div>
+
+                            <div class="tip-item">
+                                <h5>🔧 Language-Specific Features</h5>
+                                <ul>
+                                    <li><strong>Python:</strong> Watch for colon markers to spot function/class definitions</li>
+                                    <li><strong>JavaScript:</strong> Use block markers to understand nested structures</li>
+                                    <li><strong>HTML:</strong> Tag markers help with element boundaries</li>
+                                    <li><strong>CSS:</strong> Property indicators make styling clearer</li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <div class="pro-tip">
+                            <h4>🏆 Pro Tip</h4>
+                            <p>Create custom color schemes by adjusting individual guide colors and saving your settings. This lets you create the perfect visual environment for your coding style and accessibility needs!</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Connection Status -->
+    <div id="connectionStatus" class="connection-status hidden">
+        <span class="status-icon">📡</span>
+        <span class="status-text">Connection lost - working offline</span>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="loading-overlay hidden">
+        <div class="loading-content">
+            <div class="loading-spinner"></div>
+            <div class="loading-text">Loading ClearCode...</div>
+        </div>
+    </div>
+
+    <!-- Hidden file input for importing settings -->
+    <input type="file" id="settingsFileInput" accept=".json" style="display: none;">
+
+    <!-- Monaco Editor -->
+    <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs/loader.js"></script>
+    <script src="main.js"></script>
+</body>
+</html>
